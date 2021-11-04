@@ -54,7 +54,7 @@ stack_10_15_20 <- stack %>%
   crop(nv) %>%
   mask (nv) %>%
   raster::aggregate(fact = 10)
-print(Sys.time() - start) # 12 min
+print(Sys.time() - start) # 12-19 min
 
 
 # Turn Nevada into raster; convert to ok format first
@@ -72,62 +72,32 @@ boxplot(stack_10_15_20[[1]], nv.r)
 #####################################################
 
 # Extract mean raster values to Nevada units
-foo <- raster::extract(stack_10_15_20, nv,
+vals <- raster::extract(stack_10_15_20, nv,
                        fun = mean, na.rm = TRUE,
                        # start with layer 1, do 3 layers, stick in df
                        layer = 1, nl = 3, df = TRUE)
-view(foo)
-
-# ^# do to stack specifying which layer to start with and # of layers (nlayer)
-
-# ID rcmap_sagebrush_2020
-# 1  1             4.919563
-# 2  2             6.658754
-# 3  3             3.362309
-# 4  4             5.174511
-# 5  5             4.569575
-# 6  6             1.131831
-boo <- raster::extract(nv2020x0, nv, fun = mean, na.rm = TRUE, df = TRUE)
-# ID rcmap_sagebrush_2020
-# 1  1             5.766832
-# 2  2             7.078882
-# 3  3             4.448844
-# 4  4             6.632233
-# 5  5             5.762023
-# 6  6             3.938680
 
 
-# Let's take avg of 5% sagebrush cover
-# How much does that equate to over Nevada?
+# Convert sagebrush percentage for all pixels in zone into sq km
 
-# Get res (m), square it to get pixel area (sq m), x #pixels, x % cover, convert to sq km
-# 1000m x 1000m = 1,000,000 sq m = 1 sq km
-sqm2sqkm <- 1/1000000
+# Define function to convert
+sqm2sqkm <- function(x, na.rm = TRUE) (res(stack_10_15_20)[1]^2 * ncell(stack_10_15_20)) * x/100 * 1/1000000
 
-(res(nv2020)[1])^2*ncell(nv2020)*0.05*sqm2sqkm #19035
-# ^ That's HUGE. Is it possible it's including entire bounding box of Nevada?
-ncell(nv2020) #5287500 -- is this bounding box?
-ncell(nv2020[!is.na(nv2020)]) #5287500 -- suggests it's excluding NAs from count
-isTRUE(nrow(nv2020) * ncol(nv2020) == ncell(nv2020)) # but then why are these =?
-ncell(nv2020[nv2020>0]) #2318424
-(res(nv2020)[1])^2*ncell(nv2020[nv2020>0])*0.04*0.001 #8346326
-
-raster::area(nv2020)
-nrow(nv2020) * ncol(nv2020)
-
-?ncell
+# Apply conversion to pixel percentage columns
+vals_sqkm <- vals %>%
+  mutate_at(vars(starts_with("rcmap")),
+            # funs(sqkm = sqm2sqkm)) # appends suffix sqkm; w/o funs
+            sqm2sqkm) # w/o specifying funs, mutate_at overrides orig vars
 
 
-goo <- st_bbox(nv)
-raster::area(nv2020)
-?st_geometry
-plot(nv)
+# Tidy dataset for applying models
+foo <- vals_sqkm %>% t() %>% data.frame() # transpose
+colnames(foo) <- paste0("zone_",foo[1,]) # name cols by zone
+foo <- foo[-c(1),] # nix extraneous column
+foo$yr <- as.numeric(right(rownames(foo),4)) # fill yr col with suffix yr
+rownames(foo) <- NULL # nix extraneous row names
+data <- foo %>%
+  gather(key = "zone", value = "sqkm", -yr) # turn zone into variable
 
 
-## END GOAL
-# values are % sagebrush in each pixel
-# need average % for each district office, for each year
-  # plot trendline
-  # generate linear trendline
-  # extract slope (annual loss) and plot to map
 
