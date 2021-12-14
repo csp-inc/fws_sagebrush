@@ -6,7 +6,9 @@
 ## Set working directory 
 setwd("G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/scripts/fws_sagebrush")
 wd <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/scripts/fws_sagebrush/"
-data.dir <- "C:/Users/clitt/OneDrive/Desktop/sagebrush_data_temp/"
+# temp.data.dir <- "C:/Users/clitt/OneDrive/Desktop/sagebrush_data_temp/"
+# data.dir <- "/home/azureuser/arbitrarilynameddirectory/"
+data.dir <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/data - state of sagebrush/data/"
 out.dir <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/outputs/"
 
 
@@ -19,7 +21,7 @@ required.packages <- c("plyr", "ggplot2", "gridExtra", "raster", "sf", "rgdal", 
                        "MASS", "pROC", "ResourceSelection", "caret", "broom", "boot",
                        "dismo", "gbm", "usdm", "pscl", "randomForest", "pdp", "classInt", "plotmo",
                        "ggspatial", "lmtest",  "dynatopmodel", "spatialEco", "exactextractr", "fasterize",
-                       "chemCal")
+                       "chemCal", "parallel")
 new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)>0) install.packages(new.packages)
 rm(required.packages, new.packages)
@@ -63,6 +65,7 @@ library(exactextractr)
 library(RColorBrewer)
 library(fasterize)
 library(chemCal)
+library(parallel)
 
 
 # rm(GCtorture)
