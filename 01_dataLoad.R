@@ -1,5 +1,8 @@
 today <- Sys.Date()
 
+# maybe necessary if some raster aren't loading
+# unlink(".RData")
+
 ######################################
 ## DATA COLLECTION & PRE-PROCESSING ##
 ######################################
@@ -32,6 +35,7 @@ res(template)
 
 
 # Load ecoregions
+# Below is from original shapefile off ScienceBase: https://www.sciencebase.gov/catalog/item/55c77f7be4b08400b1fd82d4
 eco <- load_f(paste0(data.dir, "us_eco_l3_merged_features.shp"))
 eco$US_L3NAME
 # Retain select ecoregions and assign groups
@@ -53,11 +57,17 @@ eco <- eco[eco$US_L3NAME %in% keeps,] %>%
   mutate(group = ifelse(US_L3NAME %in% gb, "Great Basin",
                         ifelse(US_L3NAME %in% gp, "Great Plains", "Intermountain West")))
 
-plot(eco, max.plot = 14)
-remove(gb, gp, keeps)
+eco <- eco %>%
+  group_by(group) %>%
+  summarize(geometry = st_union(geometry))
+plot(eco) # tiny scrap in lower lobe of InterMt West...
+
+#Alt: load shapefiles from DT, which checks out against above processing, but doesn't retain names.
+# eco_alt <- load_f(paste0(data.dir, "SEIecoregions.shp"))
+# plot(eco_alt)
 
 # Test case of Great Basin
-gb <- st_cast(eco[eco$group == "Great Basin",], "MULTIPOLYGON")
+# gb <- st_cast(eco[eco$group == "Great Basin",], "MULTIPOLYGON")
 # plot(gb)
 # # Raster will need numeric; add and create look-up
 # gb$US_L3CODE <- as.numeric(gb$US_L3CODE)
@@ -68,14 +78,14 @@ gb <- st_cast(eco[eco$group == "Great Basin",], "MULTIPOLYGON")
 
 
 
-##########################################################
-## Load cores (defend), grow, mitigate zones into stack ##
-##########################################################
+###########################################################
+## Load cores (defend), grow, mitigate zones and project ##
+###########################################################
 
-# List all rasters
+# List all rasters (211222: where's 2016-2019??)
 files <- list.files(paste0(data.dir), full.names = TRUE)
 # Get indices of only .img files
-keeps <- grep(pattern = "Q5sc3.tif", x = files)
+keeps <- grep(pattern = "Q5sc3.tif$", x = files)
 # Retain only those keeps
 (files <- files[keeps] %>% sort(.)) 
 
@@ -94,28 +104,30 @@ crs(stack) ; res(stack)
 nlayers(stack)
 
 
-
-
-
 # Project from lat/long to equal area to get pixels into m (though they'll be diff x & y)
 # Increase memory (else often fails)
 memory.limit() #16122
 memory.limit(size = 20000)
 
-## FIXME: set resolution to 90x90 when projecting
+# Turn on/off resolution 
 start <- Sys.time()
-stackp <- projectRaster(stack, crs = proj.crs)
-print(Sys.time() - start) #~4hrs
-names(stackp) <- paste0(names(stackp), "_p")
+stackp <- projectRaster(stack, crs = proj.crs, res = 90)
+print(Sys.time() - start) #~4hrs for 6 with no res setting; ~2 hrs for 5 with res at 90
+# names(stackp) <- paste0(names(stackp), "_p")
+names(stackp) <- paste0(names(stackp), "_90m_p")
 
 # Save rasters
 writeRaster(stackp, filename = paste0(data.dir,names(stackp)), bylayer = TRUE, format = "GTiff" )
 plot(stackp[[1]])
 crs(stackp[[1]])
-res(stackp[[1]]) #65.9 89.2
+res(stackp[[1]]) #65.9 89.2 # 90 90
 
 remove(stack)
 
+
+##################################################
+## Calc area of each zone within each timeframe ##
+##################################################
 
 # Create loop 
 yr <- vector()
@@ -133,26 +145,60 @@ for (i in 1:nlayers(stackp)){
     zone <- c(zone, paste0("zone",j))
     temp1 <- freq(stackp[[i]], value = j)
     cnt <- c(cnt, temp1)
+    # If res not specified during projection, x and y will differ
     temp2 <- round(temp1 * res(stackp[[i]])[1] * res(stackp[[i]])[2],0)
     sqm <- c(sqm, temp2)
     sqkm <- c(sqkm, round(temp2/1000000,0))
   }
 }
 gc() # free unused memory
-print(Sys.time() - start) #35 min
-
-remove(summary)
+print(Sys.time() - start) #35 min ; 12 min for 5 layers w 90 m
 
 # Combine into dataframe, though all end up as characters so convert (but not zone)
+remove(temp1, temp2, summary)
 (summary <- as.data.frame(cbind(yr, zone, cnt, sqm, sqkm)))
 summary <- summary %>%
   mutate_at(vars(yr, cnt, sqm, sqkm), as.numeric) 
 str(summary)
 write.csv(summary, paste0(out.dir, "core_cnts_area_", today, ".csv"))
 
+
+summary <- read.csv(paste0(out.dir, "core_cnts_area_2021-12-22.csv"))[,2:6]
+temp2 <- summary %>%
+  mutate(acres = sqkm * 247.105) %>%
+  mutate(mil.acres = acres/1000000)
+
+
+p <- ggplot(data = summary, aes(x = yr, y = sqkm)) + geom_point() + geom_smooth(method=lm)
+p + facet_wrap(~zone)
+
+
+
+sum(summary[1:3,5])
+sum(summary[4:6,5])
+sum(summary[7:9,5])
+sum(summary[10:12,5])
+sum(summary[13:15,5])
+
 sum(summary[1:3,5])
 
+temp <- summary %>%
+  dplyr::select(yr, zone, sqkm) %>%
+  pivot_wider(names_from = zone, values_from = sqkm)
+write.csv(temp, paste0(out.dir, "core_area_2021-12-14.csv"))
 
+
+##########
+## DUMP ##
+##########
+
+# install.packages("terra")
+library(terra)
+x <- terra::vect(biome)
+x$area_sqkm <- expanse(x) / 1000000
+?expanse
+
+sum(summary[1:3,5])/x$area_sqkm
 
 # Return number of pixels with core values
 freq(stackp[[1]], value = 1) # 47748631
@@ -191,8 +237,6 @@ aggregate(getValues(area(foo, weights=FALSE)), by=list(getValues(foo)), sum)
 # print(Sys.time() - start)
 
 
-
-
 # Extract mean raster values to GB units
 start <- Sys.time()
 vals <- raster::extract(stack[[1]], gb,
@@ -214,3 +258,6 @@ plot(boo)
 start <- Sys.time()
 zoo <- projectRaster(boo, crs = proj.crs)
 print(Sys.time() - start)
+
+
+
