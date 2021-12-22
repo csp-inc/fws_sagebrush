@@ -53,7 +53,7 @@ for (i in 1:length(models$fitSage)){
 ## Plot trendlines for each zone
 
 p <- ggplot(data = data, aes(x = yr, y = sqkm)) + geom_point()
-p + facet_wrap(~zone)
+p + facet_wrap(~zone) + theme_caitlin()
 
 
 
