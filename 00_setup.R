@@ -9,7 +9,7 @@ wd <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/scripts/fws_sagebrush/"
 # temp.data.dir <- "C:/Users/clitt/OneDrive/Desktop/sagebrush_data_temp/"
 # data.dir <- "/home/azureuser/arbitrarilynameddirectory/"
 data.dir <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/data - state of sagebrush/data/"
-out.dir <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/outputs/"
+out.dir <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/output/"
 
 
 
@@ -21,7 +21,7 @@ required.packages <- c("plyr", "ggplot2", "gridExtra", "raster", "sf", "rgdal", 
                        "MASS", "pROC", "ResourceSelection", "caret", "broom", "boot",
                        "dismo", "gbm", "usdm", "pscl", "randomForest", "pdp", "classInt", "plotmo",
                        "ggspatial", "lmtest",  "dynatopmodel", "spatialEco", "exactextractr", "fasterize",
-                       "chemCal", "parallel")
+                       "chemCal")
 new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)>0) install.packages(new.packages)
 rm(required.packages, new.packages)
@@ -34,6 +34,12 @@ library(raster)
 # library(sp)
 library(sf)
 library(rgdal)
+
+# Please note that rgdal will be retired by the end of 2023,
+# plan transition to sf/stars/terra functions using GDAL and PROJ
+# at your earliest convenience.
+
+
 library(dplyr)
 library(tidyverse)
 library(maptools)
@@ -65,7 +71,7 @@ library(exactextractr)
 library(RColorBrewer)
 library(fasterize)
 library(chemCal)
-library(parallel)
+
 
 
 # rm(GCtorture)
@@ -196,13 +202,13 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 # grey, orange, light blue, pine green, yellow, dark blue, red, pink
 
 library(RColorBrewer)
-display.brewer.all(7)
-display.brewer.pal(7, "Set1")
+# display.brewer.all(7)
+# display.brewer.pal(7, "Set1")
 # palette <- brewer.pal(7, "Set1")
 
-display.brewer.all(colorblindFriendly = TRUE)
-display.brewer.pal(8, "Dark2")
-display.brewer.pal(8, "RdYlBu")
+# display.brewer.all(colorblindFriendly = TRUE)
+# display.brewer.pal(8, "Dark2")
+# display.brewer.pal(8, "RdYlBu")
 palette <- brewer.pal(8, "Dark2")
 palette <- brewer.pal(8, "Set2")
 palette <- brewer.pal(8, "RdYlBu")
@@ -223,65 +229,65 @@ theme_caitlin <- function(base_size=12, base_family="sans") {
 }
 
 
-
-
-#######################################################################
-## To plot raster in ggplot, extract values into tibble
-# ref: https://stackoverflow.com/questions/47116217/overlay-raster-layer-on-map-in-ggplot2-in-r
-# Define function to extract raster values into a tibble
-gplot_data <- function(x, maxpixels = 50000)  {
-  x <- raster::sampleRegular(x, maxpixels, asRaster = TRUE)
-  coords <- raster::xyFromCell(x, seq_len(raster::ncell(x)))
-  ## Extract values
-  dat <- utils::stack(as.data.frame(raster::getValues(x))) 
-  names(dat) <- c('value', 'variable')
-  
-  dat <- dplyr::as.tbl(data.frame(coords, dat))
-  
-  if (!is.null(levels(x))) {
-    dat <- dplyr::left_join(dat, levels(x)[[1]], 
-                            by = c("value" = "ID"))
-  }
-  dat
-}
-
-
-
-
-
-#######################################################################
-## From ggExtra -- to specify size of plots (adapted align.plots)
-
-align.plots2 <- function (..., vertical = TRUE, pos = NULL) 
-{
-  dots <- list(...)
-  if (is.null(pos)) pos <- lapply(seq(dots), I)
-  dots <- lapply(dots, ggplotGrob)
-  ytitles <- lapply(dots, function(.g) editGrob(getGrob(.g, 
-                                                        "axis.title.y.text", grep = TRUE), vp = NULL))
-  ylabels <- lapply(dots, function(.g) editGrob(getGrob(.g, 
-                                                        "axis.text.y.text", grep = TRUE), vp = NULL))
-  legends <- lapply(dots, function(.g) if (!is.null(.g$children$legends)) 
-    editGrob(.g$children$legends, vp = NULL)
-    else ggplot2:::.zeroGrob)
-  gl <- grid.layout(nrow = do.call(max,pos))
-  vp <- viewport(layout = gl)
-  pushViewport(vp)
-  widths.left <- mapply(`+`, e1 = lapply(ytitles, grobWidth), 
-                        e2 = lapply(ylabels, grobWidth), SIMPLIFY = F)
-  widths.right <- lapply(legends, function(g) grobWidth(g) + 
-                           if (is.zero(g)) 
-                             unit(0, "lines")
-                         else unit(0.5, "lines"))
-  widths.left.max <- max(do.call(unit.c, widths.left))
-  widths.right.max <- max(do.call(unit.c, widths.right))
-  for (ii in seq_along(dots)) {
-    pushViewport(viewport(layout.pos.row = pos[[ii]]))
-    pushViewport(viewport(x = unit(0, "npc") + widths.left.max - 
-                            widths.left[[ii]], width = unit(1, "npc") - widths.left.max + 
-                            widths.left[[ii]] - widths.right.max + widths.right[[ii]], 
-                          just = "left"))
-    grid.draw(dots[[ii]])
-    upViewport(2)
-  }
-}
+# 
+# 
+# #######################################################################
+# ## To plot raster in ggplot, extract values into tibble
+# # ref: https://stackoverflow.com/questions/47116217/overlay-raster-layer-on-map-in-ggplot2-in-r
+# # Define function to extract raster values into a tibble
+# gplot_data <- function(x, maxpixels = 50000)  {
+#   x <- raster::sampleRegular(x, maxpixels, asRaster = TRUE)
+#   coords <- raster::xyFromCell(x, seq_len(raster::ncell(x)))
+#   ## Extract values
+#   dat <- utils::stack(as.data.frame(raster::getValues(x))) 
+#   names(dat) <- c('value', 'variable')
+#   
+#   dat <- dplyr::as.tbl(data.frame(coords, dat))
+#   
+#   if (!is.null(levels(x))) {
+#     dat <- dplyr::left_join(dat, levels(x)[[1]], 
+#                             by = c("value" = "ID"))
+#   }
+#   dat
+# }
+# 
+# 
+# 
+# 
+# 
+# #######################################################################
+# ## From ggExtra -- to specify size of plots (adapted align.plots)
+# 
+# align.plots2 <- function (..., vertical = TRUE, pos = NULL) 
+# {
+#   dots <- list(...)
+#   if (is.null(pos)) pos <- lapply(seq(dots), I)
+#   dots <- lapply(dots, ggplotGrob)
+#   ytitles <- lapply(dots, function(.g) editGrob(getGrob(.g, 
+#                                                         "axis.title.y.text", grep = TRUE), vp = NULL))
+#   ylabels <- lapply(dots, function(.g) editGrob(getGrob(.g, 
+#                                                         "axis.text.y.text", grep = TRUE), vp = NULL))
+#   legends <- lapply(dots, function(.g) if (!is.null(.g$children$legends)) 
+#     editGrob(.g$children$legends, vp = NULL)
+#     else ggplot2:::.zeroGrob)
+#   gl <- grid.layout(nrow = do.call(max,pos))
+#   vp <- viewport(layout = gl)
+#   pushViewport(vp)
+#   widths.left <- mapply(`+`, e1 = lapply(ytitles, grobWidth), 
+#                         e2 = lapply(ylabels, grobWidth), SIMPLIFY = F)
+#   widths.right <- lapply(legends, function(g) grobWidth(g) + 
+#                            if (is.zero(g)) 
+#                              unit(0, "lines")
+#                          else unit(0.5, "lines"))
+#   widths.left.max <- max(do.call(unit.c, widths.left))
+#   widths.right.max <- max(do.call(unit.c, widths.right))
+#   for (ii in seq_along(dots)) {
+#     pushViewport(viewport(layout.pos.row = pos[[ii]]))
+#     pushViewport(viewport(x = unit(0, "npc") + widths.left.max - 
+#                             widths.left[[ii]], width = unit(1, "npc") - widths.left.max + 
+#                             widths.left[[ii]] - widths.right.max + widths.right[[ii]], 
+#                           just = "left"))
+#     grid.draw(dots[[ii]])
+#     upViewport(2)
+#   }
+# }
