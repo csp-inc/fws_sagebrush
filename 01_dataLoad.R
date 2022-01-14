@@ -1,3 +1,14 @@
+###########################################################
+###########################################################
+###########################################################
+## IF WORKING WITH GEE RESULTS, SKIP THIS TIF PROCESSING ##
+###########################################################
+###########################################################
+###########################################################
+
+
+
+
 today <- Sys.Date()
 
 # maybe necessary if some raster aren't loading
@@ -25,13 +36,13 @@ proj.crs <- "+proj=aea +lat_0=23 +lon_0=-96 +lat_1=29.5 +lat_2=45.5 +x_0=0 +y_0=
 biome <- load_f(paste0(data.dir, "US_Sagebrush_Biome_2019.shp"))
 plot(biome)
 
-# Create template from biome
-template <- raster(extent(biome),
-                   crs = proj.crs,
-                   res = 90,
-                   vals = 1)
-plot(template)
-res(template)
+# # Create template from biome
+# template <- raster(extent(biome),
+#                    crs = proj.crs,
+#                    res = 90,
+#                    vals = 1)
+# plot(template)
+# res(template)
 
 
 # Load ecoregions
@@ -62,6 +73,9 @@ eco <- eco %>%
   summarize(geometry = st_union(geometry))
 plot(eco) # tiny scrap in lower lobe of InterMt West...
 
+st_write(eco, paste0(data.dir,"eco_grps.shp"), driver = "ESRI Shapefile")
+
+
 #Alt: load shapefiles from DT, which checks out against above processing, but doesn't retain names.
 # eco_alt <- load_f(paste0(data.dir, "SEIecoregions.shp"))
 # plot(eco_alt)
@@ -82,7 +96,7 @@ plot(eco) # tiny scrap in lower lobe of InterMt West...
 ## Load cores (defend), grow, mitigate zones and project ##
 ###########################################################
 
-# List all rasters (211222: where's 2016-2019??)
+# List all rasters (skip 2016-2019; no longer using)
 files <- list.files(paste0(data.dir), full.names = TRUE)
 # Get indices of only .img files
 keeps <- grep(pattern = "Q5sc3.tif$", x = files)
@@ -109,155 +123,46 @@ nlayers(stack)
 memory.limit() #16122
 memory.limit(size = 20000)
 
-# Turn on/off resolution 
+# Turn on/off resolution; specify nearest neighbor else defaults to bilinear interp.
 start <- Sys.time()
-stackp <- projectRaster(stack, crs = proj.crs, res = 90)
-print(Sys.time() - start) #~4hrs for 6 with no res setting; ~2 hrs for 5 with res at 90
+# boo <- projectRaster(stack[[1]],crs = proj.crs, res = 90, method = 'ngb',)
+# writeRaster(boo, filename = paste0(data.dir,names(stack[[1]]),"_",today,".tif"), format = "GTiff", overwrite = TRUE)
+stackp <- projectRaster(stack, crs = proj.crs, res = 90, method = 'ngb')#,
+                        # filename = paste0(data.dir,names(stackp),today), bylayer = TRUE, format = "GTiff")
+print(Sys.time() - start) #~4hrs for 6 with no res setting; ~2 hrs for 5 with res at 90; ~22 hrs for 5 w res at 90, nearest neighbor
 # names(stackp) <- paste0(names(stackp), "_p")
 names(stackp) <- paste0(names(stackp), "_90m_p")
 
 # Save rasters
-writeRaster(stackp, filename = paste0(data.dir,names(stackp)), bylayer = TRUE, format = "GTiff" )
+start <- Sys.time()
+writeRaster(stackp, filename = paste0(data.dir,names(stackp),"_",today), bylayer = TRUE, format = "GTiff" )
+print(Sys.time() - start) # 5 hrs 5 at 90m
 plot(stackp[[1]])
 crs(stackp[[1]])
 res(stackp[[1]]) #65.9 89.2 # 90 90
 
-remove(stack)
 
 
-##################################################
-## Calc area of each zone within each timeframe ##
-##################################################
+# Re-load
+# List all rasters (skip 2016-2019; no longer using)
+files <- list.files(paste0(data.dir), full.names = TRUE)
+# Get indices of only .img files
+keeps <- grep(pattern = "Q5sc3_90m_p_2021-12-24.tif$", x = files)
+# Retain only those keeps
+(files <- files[keeps] %>% sort(.)) 
 
-# Create loop 
-yr <- vector()
-zone <- vector()
-temp <- vector()
-cnt <- vector()
-sqm <- vector()
-sqkm <- vector()
-
-start <- Sys.time()
-# for (i in 1){
-for (i in 1:nlayers(stackp)){
-  for (j in c(1,2,3)) {
-    yr <- c(yr, as.numeric(mid(names(stackp[[i]]), 13, 4)))
-    zone <- c(zone, paste0("zone",j))
-    temp1 <- freq(stackp[[i]], value = j)
-    cnt <- c(cnt, temp1)
-    # If res not specified during projection, x and y will differ
-    temp2 <- round(temp1 * res(stackp[[i]])[1] * res(stackp[[i]])[2],0)
-    sqm <- c(sqm, temp2)
-    sqkm <- c(sqkm, round(temp2/1000000,0))
-  }
+stackp <- raster(files[1]) # initiate stack w 1st
+for (i in 2:length(files)){ # start w 2nd
+  stackp <- addLayer(stackp, raster(files[i])) # add other layers
 }
-gc() # free unused memory
-print(Sys.time() - start) #35 min ; 12 min for 5 layers w 90 m
 
-# Combine into dataframe, though all end up as characters so convert (but not zone)
-remove(temp1, temp2, summary)
-(summary <- as.data.frame(cbind(yr, zone, cnt, sqm, sqkm)))
-summary <- summary %>%
-  mutate_at(vars(yr, cnt, sqm, sqkm), as.numeric) 
-str(summary)
-write.csv(summary, paste0(out.dir, "core_cnts_area_", today, ".csv"))
-
-
-summary <- read.csv(paste0(out.dir, "core_cnts_area_2021-12-22.csv"))[,2:6]
-temp2 <- summary %>%
-  mutate(acres = sqkm * 247.105) %>%
-  mutate(mil.acres = acres/1000000)
-
-
-p <- ggplot(data = summary, aes(x = yr, y = sqkm)) + geom_point() + geom_smooth(method=lm)
-p + facet_wrap(~zone)
+plot(stackp[[5]])
+freq(stackp[[5]])
+plot(stack[[5]])
+freq(stack)[[5]]
 
 
 
-sum(summary[1:3,5])
-sum(summary[4:6,5])
-sum(summary[7:9,5])
-sum(summary[10:12,5])
-sum(summary[13:15,5])
-
-sum(summary[1:3,5])
-
-temp <- summary %>%
-  dplyr::select(yr, zone, sqkm) %>%
-  pivot_wider(names_from = zone, values_from = sqkm)
-write.csv(temp, paste0(out.dir, "core_area_2021-12-14.csv"))
-
-
-##########
-## DUMP ##
-##########
-
-# install.packages("terra")
-library(terra)
-x <- terra::vect(biome)
-x$area_sqkm <- expanse(x) / 1000000
-?expanse
-
-sum(summary[1:3,5])/x$area_sqkm
-
-# Return number of pixels with core values
-freq(stackp[[1]], value = 1) # 47748631
-freq(stackp[[1]], value = 2) # 61437686
-freq(stackp[[1]], value = 3) # 27323692
-
-# Return number of pixels with core values
-freq(stackp[[6]], value = 1) # 31728169
-freq(stackp[[6]], value = 2) # 56919352
-freq(stackp[[6]], value = 3) # 28863346
-
-# ref: https://stackoverflow.com/questions/40698818/calculating-area-of-raster-with-certain-values-in-r
-foo <- stackp[[1]]
-sum(stackp[[1]][] == 1) # NA
-sum(stackp[[1]][] == 1) * res(stackp[[1]])[1] * res(stackp[[1]])[2]
-sum(foo[] == 1) # NA
-sum(foo[] > 1, na.rm = TRUE) # 94651486
-
-
-
-?area
-
-# ref: https://stackoverflow.com/questions/43629657/calculate-area-for-different-land-cover-classes-in-a-raster-in-r
-aggregate(getValues(area(foo, weights=FALSE)), by=list(getValues(foo)), sum)
-?getValues
-
-# # Try with lapply.
-# start <- Sys.time()
-# stackp <- lapply(X = stack, FUN = projectRaster, crs = proj.crs)
-# print(Sys.time() - start)
-# 
-# # Try in parallel (ref: https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html)
-# numCores <- detectCores()
-# start <- Sys.time()
-# stackp <- mclapply(x = stack, FUN = projectRaster, crs = proj.crs, mc.cores = numCores)
-# print(Sys.time() - start)
-
-
-# Extract mean raster values to GB units
-start <- Sys.time()
-vals <- raster::extract(stack[[1]], gb,
-                        fun = mean, na.rm = TRUE)#,
-                        # start with layer 1, do all 6 layers, stick in df
-                        # layer = 1, nl = 6, df = TRUE)
-print(Sys.time() - start) # 2.31192 hours
-
-
-
-foo <- raster(extent(gb),
-                   crs = "+proj=longlat +datum=WGS84 +no_defs",
-                   # res = 90,
-                   vals = 1)
-crs(foo)
-boo <- fasterize(gb, foo)
-crs(boo)
-plot(boo)
-start <- Sys.time()
-zoo <- projectRaster(boo, crs = proj.crs)
-print(Sys.time() - start)
 
 
 
