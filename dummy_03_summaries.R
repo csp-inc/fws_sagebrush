@@ -6,11 +6,14 @@
 
 # Ref: https://stackoverflow.com/questions/37395059/running-several-linear-regressions-from-a-single-dataframe-in-r
 # Ref: https://cran.r-project.org/web/packages/broom/vignettes/broom_and_dplyr.html
+data <- summary
 # Store each zone's model (as a list) in a column of a dataframe. 
-models <- data %>% group_by(zone) %>% do(fitSage = lm(sqkm ~ yr, data=.))
+models <- data %>% group_by(zone) %>% do(fitSage = lm(acres_mil ~ yr, data=.))
 # Can see summaries of each model with the following  
 tidy(models$fitSage[[1]]) #; summary(models$fitSage[[1]])
 tidy(models$fitSage[[2]]) #; summary(models$fitSage[[2]])
+tidy(models$fitSage[[3]]) #; summary(models$fitSage[[2]])
+
 # Alt for summaries:
 # data %>% group_by(zone) %>%
 #   do(fitSage = augment(lm(sqkm ~ yr, data = .))) %>%
