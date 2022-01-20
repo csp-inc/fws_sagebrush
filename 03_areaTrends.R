@@ -9,7 +9,7 @@ today <- paste0(mid(Sys.Date(),3,2),
 
 
 
-##########################################
+####################################################################################
 ## Set-up for stressor trends by ecoregion
 
 # Load data
@@ -31,86 +31,16 @@ levels(data$stressor) = c("Invasive annual grass", "Conifers", "Human modificati
 # Turn stressor into an ordered factor and rename levels
 data$severity <- ordered(data$severity,
                       levels = c("vhigh", "high", "mod", "low"))
-levels(data$severity) <- c("v. high", "high", "mod.", "low")
+levels(data$severity) <- c("very high", "high", "moderate", "no to low")
 
 # Nb tidyverse uses forcats w/ e.g., fct_rev for on-the-fly re-ordering in plots. 
 # But here I'm just setting factors in desired order to avoid worrying about legend titles
 
 
-
-###################################
-## plots: 1 stressor x 3 ecoregions
-
-# Create list to store plots in
-plots_stressor <- list()
-
-# Loop through the three stressors
-for (i in 1:length(levels(data$stressor))){
-  name <- paste0(levels(data$stressor)[i])
-  
-  # Subset data to each stressor
-  temp <- data %>% filter(stressor == paste0(name))
-  plot <- ggplot(temp, aes(x = year, y = area, fill = severity)) +
-    geom_bar(position="stack", stat="identity") +
-    facet_wrap(~eco) + # Plot by ecoregion
-    labs(title = paste0("Trends in ", name),
-         y = "millions of acres") +
-    scale_fill_brewer(palette = "BrBG")
-  
-    # Save plot
-  pdf(paste0(out.dir,"plots/", "trend_stressor_", name, "_", today, ".pdf"), width = 8, height = 4) 
-  print(plot) # 15 missing rows b/c no very high for annual grass/hmi
-  dev.off()
-  
-  # Store plot in list
-  plots_stressor[[i]] <- plot
-  }
-
-# plot(plots_stressor[[1]])
-# plot(plots_stressor[[2]])
-# plot(plots_stressor[[3]])
-
-
-
-###################################
 ## plots: 1 ecoregion x 3 stressors
 
-# Create list to store plots in
-plots_ecoregion <- list()
-
-# Loop through the three stressors
-for (i in 1:length(levels(data$eco))){
-  name <- paste0(levels(data$eco)[i])
-  
-  # Subset data to each ecoregion
-  temp <- data %>% filter(eco == paste0(name))
-  plot <- ggplot(temp, aes(x = year, y = area, fill = severity)) +
-    geom_bar(position="stack", stat="identity") +
-    facet_wrap(~stressor) + # Plot by stressor
-    labs(title = paste0("Trends in stressors within the", name),
-         y = "millions of acres") +
-    scale_fill_brewer(palette = "BrBG")
-  
-  # Save plot
-  pdf(paste0(out.dir,"plots/", "trend_ecoreg_", name, "_", today, ".pdf"), width = 8, height = 4) 
-  print(plot) # 10 missing rows b/c no very high for annual grass/hmi
-  dev.off()
-  
-  # Store plot in list
-  plots_ecoregion[[i]] <- plot
-}
-
-# plot(plots_ecoregion[[1]])
-# plot(plots_ecoregion[[2]])
-# plot(plots_ecoregion[[3]])
-
-
-
-
-
-
-###################################
-## plots: 1 ecoregion x 3 stressors
+display.brewer.pal(4, "BrBG")
+colors <- c("#67000D", "#F46D43", "#FEE090", "#4575B4") # red, orange, yellow, blue
 
 # Create list to store plots in
 plots_ecoregion <- list()
@@ -126,7 +56,16 @@ for (i in 1:length(levels(data$eco))){
     facet_wrap(~stressor) + # Plot by stressor
     labs(title = paste0("Trends in stressors within the ", name),
          y = "millions of acres") +
-    scale_fill_brewer(palette = "BrBG")
+    # scale_fill_brewer(palette = "BrBG")
+    scale_fill_manual(values = colors) +
+    theme_classic(base_size = 16) +
+    theme(strip.background.x = element_blank(), # remove boxes around facet labels
+          strip.text.x = element_text(size = 16),
+          legend.title = element_blank(),
+          legend.position="right",
+          legend.margin=ggplot2::margin(c(rep(0,3),-15)), #t,r,b,l
+          legend.box.margin=ggplot2::margin(rep(0,4)),
+          text = element_text(family = 'serif')) # R's default fonts incl. serif
   
   # Save plot
   pdf(paste0(out.dir,"plots/", "trend_ecoreg_", name, "_", today, ".pdf"), width = 8, height = 4) 
@@ -137,9 +76,9 @@ for (i in 1:length(levels(data$eco))){
   plots_ecoregion[[i]] <- plot
 }
 
-# plot(plots_ecoregion[[1]])
-# plot(plots_ecoregion[[2]])
-# plot(plots_ecoregion[[3]])
+plot(plots_ecoregion[[1]])
+plot(plots_ecoregion[[2]])
+plot(plots_ecoregion[[3]])
 
 
 
@@ -149,10 +88,11 @@ for (i in 1:length(levels(data$eco))){
 
 
 
-###################################################
+####################################################################################
+
 ## Set-up for 2020 stressors X 3 ecoregion X 3 cores
 
-# Cores are Core Sagebrusy Areas, Growth Opp Areas, Highly Impacted Areas
+# Cores are Core Sagebrush Areas, Growth Opp Areas, Highly Impacted Areas
 
 # Load data
 data <- read.csv("G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/output/stressorsXlevelXecoregionXcores_2020_220120.csv")
@@ -226,25 +166,72 @@ levels(data$eco) = c("Great Basin", "Great Plains", "Intermountain West")
 
 
 
-###############################
-## plot: cores x 3 ecoregions
 
-# Plot by ecoregion
-plot <- ggplot(data, aes(x = year, y = area, fill = zone)) +
-  geom_bar(position="stack", stat="identity") +
-  facet_wrap(~eco) +
-  labs(title = paste0("Trends in core areas"),
-       y = "millions of acres") +
-  scale_fill_brewer(palette = "BrBG")
-plot
+## Biome trends for CSA and CSA+GOA
+  
+# Combine ecoregions
+data <- data %>%
+  filter(! zone == "HIA") %>%
+  group_by(year, zone) %>%
+  summarise(area = sum(area, na.rm = TRUE)) %>%
+  ungroup()
 
-# Save plot
-pdf(paste0(out.dir,"plots/", "trend_core_by_ecoregion_", today, ".pdf"), width = 8, height = 4) 
-print(plot) # 15 missing rows b/c no very high for annual grass/hmi
-dev.off()
+both <- data %>%
+  group_by(year) %>%
+  summarise(area = sum(area, na.rm = TRUE)) %>%
+  ungroup()
+both$zone = "CSA+GOA"
+
+data <- rbind(data, both) %>% filter(! zone == "GOA") ;
+remove(both)
+
+# Simple linear models
+mod_csa <- lm(area ~ year, data[data$zone == "CSA",]) ; tidy(mod_csa)
+mod_both <- lm(area ~ year, data[data$zone == "CSA+GOA",]) ; tidy(mod_both)
+
+mods <- list(mod_csa, mod_both)
+
+## Predict sagebrush cover for each region in future year
+# New dataframe must have same # variables; leave zone empty
+new <- data.frame(year = as.numeric(2050),
+                  zone = as.character("zone_dummy"),
+                  area = as.numeric(0)) 
+
+# Create loop to predict future values and rates of change
+zone <- vector()
+rate <- vector() # for rates of change (coefficient of x)
+mil.acre.x20 <- vector() # current y when x = 2020
+mil.are.half <- vector() # area when mil.acre.x20 is halved
+yr.half <- vector() # year when half remains
+yr.zero <- vector() # year when none remains
+
+for (i in 1:length(models)){
+  zone <- c(zone, mods[[i]]$zone
+}
+length(mods)
 
 
-#######################
+
+# Loop through each mode; inverse predict from chemCal package
+# Often calling as list
+for (i in 1:length(models$fitSage)){
+  zone <- c(zone, models$zone[[i]])
+  rate <- c(rate, models$fitSage[[i]]$coefficients[[2]]) # gives list output; take only yr coeff (slope)
+  mil.acre.x50 <- c(mil.acre.x50, predict(models$fitSage[[i]], newdata = new)[[1]]) # [[1]] to remove name
+  yr.y0 <- c(yr.y0, inverse.predict(models$fitSage[[i]], 0)[[1]]) # gives list output; take 1st item (ie prediction)
+  mil.acre.x20 <- c(mil.acre.x20, predict(models$fitSage[[i]], newdata = new)[[1]]) # [[1]] to remove name
+  yr.y50 <- c(yr.y50, inverse.predict(models$fitSage[[i]], 0)[[1]]) # gives list output; take 1st item (ie prediction)
+  yrs.til <- c(yrs.til, inverse.predict(models$fitSage[[i]], 0)[[1]] - 2020) # subtract prediction from now
+}
+
+(summary <- as.data.frame(cbind(zone, rate, sqkm.x50, yr.y0, yrs.til)))
+
+
+
+
+
+
+
 ## Core plots biomewide
 
 colors <- c("#EBDEB7", "#9ECAE1", "#002769") # tan, light blue, dark blue
@@ -253,7 +240,7 @@ colors <- c("#EBDEB7", "#9ECAE1", "#002769") # tan, light blue, dark blue
 plot <- ggplot(data, aes(x = year, y = area, fill = zone)) +
   geom_bar(position="stack", stat="identity") +
   labs(y = "millions of acres") + #,
-       # title = paste0("Trends in core areas"#),
+  # title = paste0("Trends in core areas"#),
   scale_fill_manual(values = colors) +
   theme_classic(base_size = 16) +
   theme(legend.title = element_blank(),
@@ -261,7 +248,7 @@ plot <- ggplot(data, aes(x = year, y = area, fill = zone)) +
         legend.margin=ggplot2::margin(c(rep(0,3),-15)), #t,r,b,l
         legend.box.margin=ggplot2::margin(rep(0,4)),
         text = element_text(family = 'serif')) # R's default fonts incl. serif
-        
+
 plot
 
 
@@ -269,9 +256,3 @@ plot
 pdf(paste0(out.dir,"plots/", "trend_core_biomewide_", today, ".pdf"), width = 8, height = 4) 
 print(plot) # 15 missing rows b/c no very high for annual grass/hmi
 dev.off()
-
-
-display.brewer.pal(4, "BrBG")
-display.brewer.pal(3, "BrBG")
-
-  
