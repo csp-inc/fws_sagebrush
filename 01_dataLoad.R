@@ -73,7 +73,7 @@ eco <- eco %>%
   summarize(geometry = st_union(geometry))
 plot(eco) # tiny scrap in lower lobe of InterMt West...
 
-st_write(eco, paste0(data.dir,"eco_grps.shp"), driver = "ESRI Shapefile")
+# st_write(eco, paste0(data.dir,"eco_grps.shp"), driver = "ESRI Shapefile")
 
 
 #Alt: load shapefiles from DT, which checks out against above processing, but doesn't retain names.

@@ -39,7 +39,6 @@ library(rgdal)
 # plan transition to sf/stars/terra functions using GDAL and PROJ
 # at your earliest convenience.
 
-
 library(dplyr)
 library(tidyverse)
 library(maptools)
@@ -71,6 +70,7 @@ library(exactextractr)
 library(RColorBrewer)
 library(fasterize)
 library(chemCal)
+
 
 
 
