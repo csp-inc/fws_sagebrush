@@ -2,7 +2,9 @@
 ## SETUP ##
 ###########
 
-#####################################
+
+
+#######################################
 ## Set working directory 
 setwd("G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/scripts/fws_sagebrush")
 wd <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/scripts/fws_sagebrush/"
