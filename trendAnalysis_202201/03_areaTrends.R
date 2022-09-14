@@ -13,7 +13,7 @@ today <- paste0(mid(Sys.Date(),3,2),
 ## Set-up for stressor trends by ecoregion
 
 # Load data
-data <- read.csv("G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/output/stressorsXlevelXecoregion_220113.csv")
+data <- read.csv("G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/output/stressorsXlevelXecoregion_220121.csv")
 
 # Put all severities into one column
 data <- data %>% 
@@ -24,7 +24,7 @@ data <- data %>%
 data$area <- round(data$area/1000000,1)
 # Turn eco into a factor and rename levels
 (data$eco <- factor(data$eco))
-levels(data$eco) = c("Great Basin", "Great Plains", "Intermountain West")
+levels(data$eco) = c("Southern Great Basin", "Great Plains", "Intermountain West")
 # Turn stressors into a factor, re-order existing levels (otherwise alph), and rename levels
 data$stressor <- factor(data$stressor, levels = c("annualGrass", "trees", "hmi"))
 levels(data$stressor) = c("Invasive annual grass", "Conifers", "Human modification")
@@ -95,7 +95,7 @@ plot(plots_ecoregion[[3]])
 # Cores are Core Sagebrush Areas, Growth Opp Areas, Highly Impacted Areas
 
 # Load data
-data <- read.csv("G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/output/stressorsXlevelXecoregionXcores_2020_220120.csv")
+data <- read.csv("G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/output/stressorsXlevelXecoregionXcores_2020_220121.csv")
 
 # Put all severities into one column
 data <- data %>% 
@@ -108,7 +108,7 @@ data$year <- NULL
 data$area <- round(data$area/1000000,1)
 # Turn eco into a factor and rename levels
 (data$eco <- factor(data$eco))
-levels(data$eco) = c("Great Basin", "Great Plains", "Intermountain West")
+levels(data$eco) = c("Southern Great Basin", "Great Plains", "Intermountain West")
 # Turn stressors into a factor, re-order existing levels (otherwise alph), and rename levels
 data$stressor <- factor(data$stressor, levels = c("annualGrass", "trees", "hmi"))
 levels(data$stressor) = c("Invasive annual grass", "Conifers", "Human modification")
@@ -118,7 +118,6 @@ data$severity <- ordered(data$severity,
 levels(data$severity) <- c("v. high", "high", "mod.", "low")
 
 
-################################################
 ## table: 2020 stressors X 3 ecoregion X 3 cores
 
 # Combine ecoregions
@@ -159,76 +158,10 @@ data <- data %>%
 data$area <- round(data$area/1000000,1)
 # Turn eco into a factor and rename levels
 (data$eco <- factor(data$eco))
-levels(data$eco) = c("Great Basin", "Great Plains", "Intermountain West")
+levels(data$eco) = c("Southern Great Basin", "Great Plains", "Intermountain West")
 # Turn zone into a factor, reorer levels, and rename levels
 (data$zone <- factor(data$zone, levels = c("zone3", "zone2", "zone1")))
 (levels(data$zone) <- c("HIA", "GOA", "CSA"))
-
-
-
-
-## Biome trends for CSA and CSA+GOA
-  
-# Combine ecoregions
-data <- data %>%
-  filter(! zone == "HIA") %>%
-  group_by(year, zone) %>%
-  summarise(area = sum(area, na.rm = TRUE)) %>%
-  ungroup()
-
-both <- data %>%
-  group_by(year) %>%
-  summarise(area = sum(area, na.rm = TRUE)) %>%
-  ungroup()
-both$zone = "CSA+GOA"
-
-data <- rbind(data, both) %>% filter(! zone == "GOA") ;
-remove(both)
-
-# Simple linear models
-mod_csa <- lm(area ~ year, data[data$zone == "CSA",]) ; tidy(mod_csa)
-mod_both <- lm(area ~ year, data[data$zone == "CSA+GOA",]) ; tidy(mod_both)
-
-mods <- list(mod_csa, mod_both)
-
-## Predict sagebrush cover for each region in future year
-# New dataframe must have same # variables; leave zone empty
-new <- data.frame(year = as.numeric(2050),
-                  zone = as.character("zone_dummy"),
-                  area = as.numeric(0)) 
-
-# Create loop to predict future values and rates of change
-zone <- vector()
-rate <- vector() # for rates of change (coefficient of x)
-mil.acre.x20 <- vector() # current y when x = 2020
-mil.are.half <- vector() # area when mil.acre.x20 is halved
-yr.half <- vector() # year when half remains
-yr.zero <- vector() # year when none remains
-
-for (i in 1:length(models)){
-  zone <- c(zone, mods[[i]]$zone
-}
-length(mods)
-
-
-
-# Loop through each mode; inverse predict from chemCal package
-# Often calling as list
-for (i in 1:length(models$fitSage)){
-  zone <- c(zone, models$zone[[i]])
-  rate <- c(rate, models$fitSage[[i]]$coefficients[[2]]) # gives list output; take only yr coeff (slope)
-  mil.acre.x50 <- c(mil.acre.x50, predict(models$fitSage[[i]], newdata = new)[[1]]) # [[1]] to remove name
-  yr.y0 <- c(yr.y0, inverse.predict(models$fitSage[[i]], 0)[[1]]) # gives list output; take 1st item (ie prediction)
-  mil.acre.x20 <- c(mil.acre.x20, predict(models$fitSage[[i]], newdata = new)[[1]]) # [[1]] to remove name
-  yr.y50 <- c(yr.y50, inverse.predict(models$fitSage[[i]], 0)[[1]]) # gives list output; take 1st item (ie prediction)
-  yrs.til <- c(yrs.til, inverse.predict(models$fitSage[[i]], 0)[[1]] - 2020) # subtract prediction from now
-}
-
-(summary <- as.data.frame(cbind(zone, rate, sqkm.x50, yr.y0, yrs.til)))
-
-
-
-
 
 
 
@@ -256,3 +189,61 @@ plot
 pdf(paste0(out.dir,"plots/", "trend_core_biomewide_", today, ".pdf"), width = 8, height = 4) 
 print(plot) # 15 missing rows b/c no very high for annual grass/hmi
 dev.off()
+
+
+
+
+
+
+
+## Biome trends for CSA and CSA+GOA
+  
+# Combine ecoregions
+data <- data %>%
+  filter(! zone == "HIA") %>%
+  group_by(year, zone) %>%
+  summarise(area = sum(area, na.rm = TRUE)) %>%
+  ungroup()
+
+both <- data %>%
+  group_by(year) %>%
+  summarise(area = sum(area, na.rm = TRUE)) %>%
+  ungroup()
+both$zone = "CSA+GOA"
+
+data <- rbind(data, both) %>% filter(! zone == "GOA") ;
+remove(both)
+
+# Simple linear models
+mod_csa <- lm(area ~ year, data[data$zone == "CSA",]) ; tidy(mod_csa) ; summary(mod_csa)
+mod_both <- lm(area ~ year, data[data$zone == "CSA+GOA",]) ; tidy(mod_both) ; summary(mod_both)
+
+# What's annual rate of loss?
+mod_csa$coefficients[[2]]
+mod_both$coefficients[[2]]
+
+# What's 2020 area?
+data$area[data$year == 2020 & data$zone == "CSA"]
+data$area[data$year == 2020 & data$zone == "CSA+GOA"]
+
+117# What's area when half remains?
+(csa_half <- data$area[data$year == 2020 & data$zone == "CSA"]/2)
+(both_half <- data$area[data$year == 2020 & data$zone == "CSA+GOA"]/2)
+
+# What's year when half remains? 1st objective in list is prediction
+inverse.predict(mod_csa, csa_half)[[1]]
+inverse.predict(mod_both, both_half)[[1]]  
+
+# What's year when nothing remains?
+inverse.predict(mod_csa, 0)[[1]]  
+inverse.predict(mod_both, 0)[[1]] 
+
+
+
+
+
+
+
+
+
+

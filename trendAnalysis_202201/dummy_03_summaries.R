@@ -2,6 +2,9 @@
 ## SUMMARIZE & PLOT RATES OF CHANGE ##
 ######################################
 
+summary <- read.csv(paste0(out.dir, "core_cnts_area_2021-12-27.csv"))[,2:6] %>%
+  mutate(acres_mil = round(acres / 1000000, 0))
+
 ## Create simply linear model on change in cover for each zone over time
 
 # Ref: https://stackoverflow.com/questions/37395059/running-several-linear-regressions-from-a-single-dataframe-in-r
