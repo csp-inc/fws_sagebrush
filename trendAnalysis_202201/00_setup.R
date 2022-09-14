@@ -2,8 +2,12 @@
 ## SETUP ##
 ###########
 
-#####################################
+
+
+#######################################
 ## Set working directory 
+
+## CHANGE ME!!!
 setwd("G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/scripts/fws_sagebrush")
 wd <- "G:/My Drive/2FWS Sagebrush/FWS Sagebrush/analyses/scripts/fws_sagebrush/"
 # temp.data.dir <- "C:/Users/clitt/OneDrive/Desktop/sagebrush_data_temp/"
